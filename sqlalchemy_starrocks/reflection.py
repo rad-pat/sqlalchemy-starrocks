@@ -310,24 +310,24 @@ class StarRocksTableDefinitionParser(object):
         count = 0
         if self._re_properties.match(lines[index]):
             count += 1
-            properties = dict()
+            properties = []
             while (index + count < len(lines)) and not self._re_properties_end.match(lines[index + count]):
                 m = self._re_property.match(lines[index + count])
                 if m:
-                    properties[m.group("key")] = m.group("value")
+                    properties.append((m.group("key"), m.group("value")))
                 count += 1
-            state.table_options["%s_%s" % (self.dialect.name, "properties")] = properties
+            state.table_options["%s_%s" % (self.dialect.name, "properties")] = tuple(properties)
         return count
 
     def _parse_broker_properties(self, lines, index, state):
         count = 0
         if self._re_broker_properties.match(lines[index]):
             count += 1
-            properties = dict()
+            properties = []
             while (index + count < len(lines)) and not self._re_properties_end.match(lines[index + count]):
                 m = self._re_property.match(lines[index + count])
                 if m:
-                    properties[m.group("key")] = m.group("value")
+                    properties.append((m.group("key"), m.group("value")))
                 count += 1
             state.table_options["%s_%s" % (self.dialect.name, "broker_properties")] = properties
         return count

@@ -226,14 +226,14 @@ class StarRocksDDLCompiler(MySQLDDLCompiler):
             comment = self.sql_compiler.render_literal_value(
                 opts['COMMENT'], sqltypes.String()
             )
-            table_opts.append(f'COMMENT="{comment}"')
+            table_opts.append(f'COMMENT {comment}')
 
         # ToDo - Partition
         # ToDo - Distribution
         # ToDo - Order by
 
         if 'PROPERTIES' in opts:
-            props = [f'\t"{k}"="{v}"' for k, v in opts['PROPERTIES'].items()].join(',\n')
+            props = ",\n".join([f'\t"{k}"="{v}"' for k, v in opts['PROPERTIES']])
             table_opts.append(f'PROPERTIES(\n{props}\n)')
 
         return " ".join(table_opts)
