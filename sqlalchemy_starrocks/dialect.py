@@ -24,7 +24,13 @@ from sqlalchemy import util
 from sqlalchemy.engine import reflection
 
 from . import reflection as _reflection
-from .datatype import TINYINT, LARGEINT, DOUBLE, HLL, BITMAP, PERCENTILE, ARRAY, MAP, STRUCT, FLOAT, INTEGER, BIGINT, DATE
+
+from sqlalchemy.dialects.mysql.types import TINYINT, SMALLINT, INTEGER, BIGINT, DECIMAL, DOUBLE, FLOAT, CHAR, VARCHAR, DATETIME
+from sqlalchemy.dialects.mysql.json import JSON
+from .datatype import (
+    LARGEINT, HLL, BITMAP, PERCENTILE, ARRAY, MAP, STRUCT,
+    DATE
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +50,7 @@ ischema_names = {
     "boolean": sqltypes.BOOLEAN,
     # === Integer ===
     "tinyint": TINYINT,
-    "smallint": sqltypes.SMALLINT,
+    "smallint": SMALLINT,
     "int": INTEGER,
     "bigint": BIGINT,
     "largeint": LARGEINT,
@@ -52,14 +58,15 @@ ischema_names = {
     "float": FLOAT,
     "double": DOUBLE,
     # === Fixed-precision ===
-    "decimal": sqltypes.DECIMAL,
-    "decimal64": sqltypes.DECIMAL,
+    "decimal": DECIMAL,
+    "decimal64": DECIMAL,
     # === String ===
-    "varchar": sqltypes.VARCHAR,
-    "char": sqltypes.CHAR,
-    "json": sqltypes.JSON,
+    "varchar": VARCHAR,
+    "char": CHAR,
+    "json": JSON,
     # === Date and time ===
     "date": DATE,
+    "datetime": DATETIME,
     "timestamp": sqltypes.DATETIME,
     # == binary ==
     "binary": sqltypes.BINARY,
