@@ -51,6 +51,7 @@ setup(
     install_requires=[
         "sqlalchemy>=1.4, <2",
         "sqlalchemy-utils>=0.38.3, <0.39",
+        "pymysql>=1.1.0",
         # "mysqlclient>=2.1.0, <3",
     ],
     setup_requires=["pytest-runner"],
