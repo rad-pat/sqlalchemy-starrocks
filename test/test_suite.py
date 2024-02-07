@@ -1,9 +1,25 @@
-# # coding: utf-8
+#! /usr/bin/python3
+# Copyright 2021-present StarRocks, Inc. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import decimal
 
 from sqlalchemy.testing.suite import *
 # from sqlalchemy.testing.suite.test_select import *
-# from sqlalchemy.testing.suite.test_select import FetchLimitOffsetTest
+# from sqlalchemy.testing.suite.test_reflection import HasIndexTest
+
+# from _pytest.monkeypatch import MonkeyPatch
 
 from sqlalchemy.testing.assertions import AssertsCompiledSQL
 from sqlalchemy import Table, Column, Integer, MetaData, select
@@ -31,16 +47,6 @@ class CompileTest(fixtures.TestBase, AssertsCompiledSQL):
             schema.CreateTable(tbl),
             "CREATE TABLE atable (id INTEGER)PROPERTIES(\"storage_medium\"=\"SSD\",\"storage_cooldown_time\"=\"2015-06-04 00:00:00\")")
 
-#     def test_reserved_words(self):
-#         table = Table("pg_table", MetaData(),
-#                       Column("col1", Integer),
-#                       Column("variadic", Integer))
-#         x = select(table.c.col1, table.c.variadic)
-#
-#         self.assert_compile(
-#             x,
-#             '''SELECT pg_table.col1, pg_table."variadic" FROM pg_table''')
-#
 
 
 # Float test fixes below for "Data type of first column cannot be FLOAT" error given by starrocks
@@ -147,3 +153,22 @@ class FloatTest(_LiteralRoundTripFixture2, fixtures.TestBase):
             [15.7563],
             filter_=lambda n: n is not None and round(n, 5) or None,
         )
+#
+#
+# class HasIndexRevised():
+#     def test_has_index_revised(self):
+#         with config.db.begin() as conn:
+#             assert config.db.dialect.has_index(conn, "test_table", "my_idx")
+#             assert not config.db.dialect.has_index(
+#                 conn, "test_table", "my_idx_s"
+#             )
+#             assert not config.db.dialect.has_index(
+#                 conn, "nonexistent_table", "my_idx"
+#             )
+#             assert not config.db.dialect.has_index(
+#                 conn, "test_table", "nonexistent_idx"
+#             )
+#
+# monkeypatch = MonkeyPatch()
+#
+# monkeypatch.setattr("")
