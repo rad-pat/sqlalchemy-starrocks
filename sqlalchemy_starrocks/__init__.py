@@ -14,8 +14,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# from sqlalchemy.dialects import registry
-#
-# registry.register("starrocks", "sqlalchemy_starrocks.dialect", "StarRocksDialect")
-
-__version__ = "1.0.5"
+__version__ = "1.2.3"
