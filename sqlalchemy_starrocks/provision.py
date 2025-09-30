@@ -1,10 +1,11 @@
-#
-# from sqlalchemy import exc
-# from sqlalchemy.testing.provision import configure_follower
-# from sqlalchemy.testing.provision import create_db
-# from sqlalchemy.testing.provision import drop_db
-# from sqlalchemy.testing.provision import generate_driver_url
-# # from sqlalchemy.testing.provision import temp_table_keyword_args
+
+from sqlalchemy import exc
+from sqlalchemy.testing.provision import configure_follower
+from sqlalchemy.testing.provision import create_db
+from sqlalchemy.testing.provision import drop_db
+from sqlalchemy.testing.provision import generate_driver_url
+from sqlalchemy.testing.provision import temp_table_keyword_args
+from sqlalchemy.testing.provision import update_db_opts
 #
 #
 # @generate_driver_url.for_db("starrocks")
@@ -39,41 +40,45 @@
 #     else:
 #         return new_url
 #
-#
-# @create_db.for_db("starrocks")
-# def _mysql_create_db(cfg, eng, ident):
-#     with eng.begin() as conn:
-#         try:
-#             _mysql_drop_db(cfg, conn, ident)
-#         except Exception:
-#             pass
-#
-#     with eng.begin() as conn:
-#         conn.exec_driver_sql(
-#             "CREATE DATABASE %s" % ident
-#         )
-#         conn.exec_driver_sql(
-#             "CREATE DATABASE %s_test_schema" % ident
-#         )
-#         conn.exec_driver_sql(
-#             "CREATE DATABASE %s_test_schema_2" % ident
-#         )
-#
-#
-# @configure_follower.for_db("starrocks")
-# def _mysql_configure_follower(config, ident):
-#     config.test_schema = "%s_test_schema" % ident
-#     config.test_schema_2 = "%s_test_schema_2" % ident
-#
-#
-# @drop_db.for_db("starrocks")
-# def _mysql_drop_db(cfg, eng, ident):
-#     with eng.begin() as conn:
-#         conn.exec_driver_sql("DROP DATABASE %s_test_schema" % ident)
-#         conn.exec_driver_sql("DROP DATABASE %s_test_schema_2" % ident)
-#         conn.exec_driver_sql("DROP DATABASE %s" % ident)
-#
-#
-# # @temp_table_keyword_args.for_db("starrocks")
-# # def _mysql_temp_table_keyword_args(cfg, eng):
-# #     return {"prefixes": ["TEMPORARY"]}
+
+@create_db.for_db("starrocks")
+def _mysql_create_db(cfg, eng, ident):
+    with eng.begin() as conn:
+        try:
+            _starrocks_drop_db(cfg, conn, ident)
+        except Exception:
+            pass
+
+    with eng.begin() as conn:
+        conn.exec_driver_sql(
+            "CREATE DATABASE %s" % ident
+        )
+        conn.exec_driver_sql(
+            "CREATE DATABASE %s_test_schema" % ident
+        )
+        conn.exec_driver_sql(
+            "CREATE DATABASE %s_test_schema_2" % ident
+        )
+
+
+@configure_follower.for_db("starrocks")
+def _starrocks_configure_follower(config, ident):
+    config.test_schema = "%s_test_schema" % ident
+    config.test_schema_2 = "%s_test_schema_2" % ident
+
+
+@drop_db.for_db("starrocks")
+def _starrocks_drop_db(cfg, eng, ident):
+    with eng.begin() as conn:
+        conn.exec_driver_sql("DROP DATABASE %s_test_schema" % ident)
+        conn.exec_driver_sql("DROP DATABASE %s_test_schema_2" % ident)
+        conn.exec_driver_sql("DROP DATABASE %s" % ident)
+
+@temp_table_keyword_args.for_db("starrocks")
+def _starrocks_temp_table_keyword_args(cfg, eng):
+    return {"prefixes": ["TEMPORARY"]}
+
+# Uncomment to debug SQL Statements in tests
+# @update_db_opts.for_db("starrocks")
+# def _starrocks_update_db_opts(db_url, db_opts):
+#     db_opts["echo"] = True
