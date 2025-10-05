@@ -35,9 +35,9 @@ from sqlalchemy.testing.assertions import eq_
 from sqlalchemy.sql.sqltypes import Float
 from sqlalchemy.engine import ObjectKind
 from sqlalchemy.engine import ObjectScope
+from plaidcloud.utilities.sql_expression import get_select_query
 
-
-class CompileTest(fixtures.TestBase, AssertsCompiledSQL):
+class StarrocksCompileTest(fixtures.TestBase, AssertsCompiledSQL):
 
     __only_on__ = "starrocks"
 
@@ -53,9 +53,67 @@ class CompileTest(fixtures.TestBase, AssertsCompiledSQL):
             schema.CreateTable(tbl),
             "CREATE TABLE atable (id INTEGER)COMMENT '' PROPERTIES(\"storage_medium\"=\"SSD\",\"storage_cooldown_time\"=\"2015-06-04 00:00:00\")")
 
+class StarrocksMogrifyTest(fixtures.TablesTest, AssertsCompiledSQL):
+    # Not strictly a dialect test, but allows me to test why mogrify is not working correctly
+    def test_mogrify_query_with_parameters(self, connection):
+        t = table('t1', column('c1'), column('c2'), column('show_vat'))
+        # sel = t.select().where(t.c.c1 == 'something')
+        # self.assert_compile(
+        #     sel,
+        #     result="SELECT t1.c1, t1.c2 FROM t1 WHERE t1.c1 = %(c1_1)s",
+        #     params={'c1_1':'something'},
+        #     render_postcompile=True,
+        # )
+        # compiled = sel.compile(connection, compile_kwargs={"render_postcompile": True})
+        # mog = connection.engine.raw_connection().cursor().mogrify(str(compiled), compiled.params)
+        # assert mog == "SELECT t1.c1, t1.c2 \nFROM t1 \nWHERE t1.c1 = 'something'"
+        #
+        # sel = t.select().where(t.c.c1 == 'Y')
+        # self.assert_compile(
+        #     sel,
+        #     result="SELECT t1.c1, t1.c2 FROM t1 WHERE t1.c1 = %(c1_1)s",
+        #     params={'c1_1':'Y'},
+        #     render_postcompile=True,
+        # )
+        # compiled = sel.compile(connection, compile_kwargs={"render_postcompile": True})
+        # mog = connection.engine.raw_connection().cursor().mogrify(str(compiled), compiled.params)
+        # assert mog == "SELECT t1.c1, t1.c2 \nFROM t1 \nWHERE t1.c1 = 'Y'"
+        #
+
+
+        sel = get_select_query(
+            tables=[t],
+            source_columns=[{'name': 'c1'}, {'name': 'c2'}, {'name': 'show_vat'}],
+            target_columns=[{'source': 'c1', 'target': 'c1', 'dtype': 'text'}, {'source': 'c2', 'target': 'c2', 'dtype': 'text'}],
+            wheres=["table.show_vat == 'Y'"],
+            config={},
+            variables={},
+        )
+        self.assert_compile(
+            sel,
+            result="SELECT CAST(t1.c1 AS CHAR(4000)) AS c1, CAST(t1.c2 AS CHAR(4000)) AS c2 FROM t1 WHERE t1.show_vat = %(show_vat_1)s",
+            params={'show_vat_1':'Y'},
+            render_postcompile=True,
+        )
+        compiled = sel.compile(connection, compile_kwargs={"render_postcompile": True})
+        mog = connection.engine.raw_connection().cursor().mogrify(str(compiled).replace('\n', ''), compiled.params)
+        assert mog == "SELECT CAST(t1.c1 AS CHAR(4000)) AS c1, CAST(t1.c2 AS CHAR(4000)) AS c2 FROM t1 WHERE t1.show_vat = 'Y'"
+
+    # def test_select_nonrecursive_round_trip(self, connection):
+    #     some_table = self.tables.some_table
+    #
+    #     cte = (
+    #         select(some_table)
+    #         .where(some_table.c.data.in_(["d2", "d3", "d4"]))
+    #         .cte("some_cte")
+    #     )
+    #     result = connection.execute(
+    #         select(cte.c.data).where(cte.c.data.in_(["d4", "d5"]))
+    #     )
+    #     eq_(result.fetchall(), [("d4",)])
 
 class ComponentReflectionTest(_ComponentReflectionTest):
-
+    # Updated because Starrocks does not currently support column comments
     def exp_columns(
         self,
         schema=None,
@@ -169,7 +227,24 @@ class FetchLimitOffsetTest(_FetchLimitOffsetTest):
             ],
         )
 
+    @testing.skip('starrocks', 'cannot render offset without limit')
+    @testing.requires.offset
+    def test_simple_offset(self, connection):
+        pass
+
+    @testing.skip('starrocks', 'cannot render offset without limit')
+    @testing.requires.offset
+    def test_simple_offset_zero(self, connection):
+        pass
+
+    @testing.skip('starrocks', 'cannot render offset without limit')
+    @testing.requires.bound_limit_offset
+    def test_bound_offset(self, connection):
+        pass
+
+
 class NumericTest(_NumericTest,):
+    # Changed because Starrocks does not support Float as first column
 
     @testing.fixture
     def do_numeric_test(self, metadata, connection):

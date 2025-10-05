@@ -123,15 +123,17 @@ class StarRocksTableDefinitionParser(object):
         Parse column from information_schema.columns table.
         It returns dictionary with column information expected by sqlalchemy.
         """
-        return {
+        col = {
             "name": column["COLUMN_NAME"],
             "type": self._parse_column_type(column=column),
             "nullable": column["IS_NULLABLE"] == "YES",
             "default": column["COLUMN_DEFAULT"],
             "autoincrement": col_autoinc.get(column["COLUMN_NAME"], False),
-            "computed": {"sqltext": column["GENERATION_EXPRESSION"]},
             "comment": column["COLUMN_COMMENT"],
         }
+        if column['GENERATION_EXPRESSION'] is not None:
+            col["computed"] = {"sqltext": column["GENERATION_EXPRESSION"]}
+        return col
 
     def _get_key_columns(self, columns: list[_DecodingRow]) -> list[str]:
         """

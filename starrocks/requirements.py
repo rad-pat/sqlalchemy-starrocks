@@ -109,7 +109,7 @@ class Requirements(SuiteRequirements):
         SELECT.
         """
         # ToDo - enable if Starrocks supports offset without limit (has order by)
-        return exclusions.closed()
+        return exclusions.open()
 
     @property
     def bound_limit_offset(self):
@@ -117,7 +117,7 @@ class Requirements(SuiteRequirements):
         parameter
         """
         # ToDo - see offset above
-        return exclusions.closed()
+        return exclusions.open()
 
     @property
     def sql_expression_limit_offset(self):

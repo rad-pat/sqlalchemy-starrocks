@@ -103,6 +103,7 @@ ischema_names = {
 colspecs = base_colspecs | {
     sqltypes.Date: StarrocksDate,
     sqltypes.DateTime: StarrocksDateTime,
+    sqltypes.DECIMAL: DECIMAL,
 }
 
 class StarRocksTypeCompiler(MySQLTypeCompiler):
