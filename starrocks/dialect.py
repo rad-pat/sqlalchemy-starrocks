@@ -15,7 +15,7 @@
 import re
 from textwrap import dedent
 import time
-from typing import Union, Optional
+from typing import Union, Optional, Any
 
 from sqlalchemy import Connection, exc, schema as sa_schema
 from sqlalchemy.dialects.mysql.pymysql import MySQLDialect_pymysql
@@ -27,7 +27,7 @@ from sqlalchemy.dialects.mysql.base import (
     _DecodingRow,
     colspecs as base_colspecs
 )
-from sqlalchemy.sql import (sqltypes, bindparam)
+from sqlalchemy.sql import (sqltypes, bindparam, elements, type_api)
 from sqlalchemy.sql.schema import Table
 from sqlalchemy import (util, log, text)
 from sqlalchemy.engine import reflection
@@ -176,6 +176,17 @@ class StarRocksSQLCompiler(MySQLCompiler):
             text += " OFFSET " + self.process(select._offset_clause, **kw)
         return text
 
+    def visit_typeclause(
+        self,
+        typeclause: elements.TypeClause,
+        type_: Optional[type_api.TypeEngine[Any]] = None,
+        **kw: Any,
+    ) -> Optional[str]:
+        if type_ is None:
+            type_ = typeclause.type.dialect_impl(self.dialect)
+        if isinstance(type_, sqltypes.Boolean):
+            return self.dialect.type_compiler_instance.process(type_)
+        return super().visit_typeclause(typeclause, type_, **kw)
 
 class StarRocksDDLCompiler(MySQLDDLCompiler):
 
