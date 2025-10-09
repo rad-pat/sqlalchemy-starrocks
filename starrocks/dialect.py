@@ -28,7 +28,7 @@ from sqlalchemy.dialects.mysql.base import (
     colspecs as base_colspecs
 )
 from sqlalchemy.sql import (sqltypes, bindparam, elements, type_api)
-from sqlalchemy.sql.schema import Table
+from sqlalchemy.sql.schema import Table, TableClause
 from sqlalchemy import (util, log, text)
 from sqlalchemy.engine import reflection
 from sqlalchemy.dialects.mysql.types import (
@@ -187,6 +187,71 @@ class StarRocksSQLCompiler(MySQLCompiler):
         if isinstance(type_, sqltypes.Boolean):
             return self.dialect.type_compiler_instance.process(type_)
         return super().visit_typeclause(typeclause, type_, **kw)
+
+    def visit_insert_into_files(self, insert_into, **kw):
+        return (
+            f"INSERT INTO {insert_into.target._compiler_dispatch(self, **kw)}"
+            f" FROM {insert_into.from_._compiler_dispatch(self, **kw)}"
+        )
+
+    def visit_files_target(self, files, **kw):
+        target_items = []
+        target_items.append(files.storage._compiler_dispatch(self, **kw))
+        target_items.append(files.format._compiler_dispatch(self, **kw))
+        if files.options is not None:
+            target_items.append(files.options._compiler_dispatch(self, **kw))
+        files_str = "\n".join(target_items)
+        return f"FILES(\n{files_str}\n)"
+
+    def visit_cloud_storage(self, storage, **kw):
+        return '\n'.join([
+            f'{repr(k)} = {repr(v)}'
+            for k, v in storage.options.items()
+        ])
+
+    def visit_files_format(self, files_format, **kw):
+        return '\n'.join([
+            f'{repr(k)} = {repr(v)}'
+            for k, v in files_format.options.items()
+        ])
+
+    def visit_files_options(self, files_options, **kw):
+        return '\n'.join([
+            f'{repr(k)} = {repr(v)}'
+            for k, v in files_options.options.items()
+        ])
+
+    def visit_insert_from_files(self, insert_from, **kw):
+        target = (
+            self.preparer.format_table(insert_from.target)
+            if isinstance(insert_from.target, (TableClause,))
+            else insert_from.target._compiler_dispatch(self, **kw)
+        )
+
+        if isinstance(insert_from.columns, str):
+            select_str = insert_from.columns
+        else:
+            select_str = ",".join(
+                [
+                    col._compiler_dispatch(self, **kw)
+                    for col in insert_from.columns
+                ]
+            )
+
+        return (
+            f"INSERT INTO {target}"
+            f" SELECT {select_str}"
+            f" FROM {insert_from.from_._compiler_dispatch(self, **kw)}"
+        )
+
+    def visit_files_source(self, files, **kw):
+        source_items = []
+        source_items.append(files.storage._compiler_dispatch(self, **kw))
+        source_items.append(files.format._compiler_dispatch(self, **kw))
+        if files.options is not None:
+            source_items.append(files.options._compiler_dispatch(self, **kw))
+        files_str = "\n".join(source_items)
+        return f"FILES(\n{files_str}\n)"
 
 class StarRocksDDLCompiler(MySQLDDLCompiler):
 

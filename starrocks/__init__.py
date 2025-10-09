@@ -1,4 +1,3 @@
-
 #! /usr/bin/python3
 # Copyright 2021-present StarRocks, Inc. All rights reserved.
 #
@@ -15,3 +14,24 @@
 # limitations under the License.
 
 __version__ = "1.2.3"
+
+
+from .dml import (
+    InsertIntoFiles,
+    FilesTarget,
+    FilesTargetOptions,
+    FilesFormat,
+    InsertFromFiles,
+    FilesSource,
+    FilesSourceOptions,
+    CSVFormat,
+    ParquetFormat,
+    ORCFormat,
+    AVROFormat,
+    AmazonS3,
+    AzureBlobStorage,
+    AzureDataLakeStorage1,
+    AzureDataLakeStorage2,
+    GoogleCloudStorage,
+    Compression,
+)
