@@ -22,19 +22,19 @@ from sqlalchemy.testing.suite import (
     StringTest as _StringTest,
     CTETest as _CTETest,
     JSONTest as _JSONTest,
+    ServerSideCursorsTest as _ServerSideCursorsTest,
 )
 
 from sqlalchemy.testing.assertions import AssertsCompiledSQL
 from sqlalchemy import Table, Column, Integer, MetaData, select
-from sqlalchemy import schema, type_coerce
+from sqlalchemy import schema, type_coerce, and_, cast
 
 from sqlalchemy.testing import fixtures
 from sqlalchemy import testing, literal
 from sqlalchemy.testing.assertions import eq_
-from sqlalchemy.sql.sqltypes import Float
+from sqlalchemy.sql.sqltypes import Float, CHAR
 from sqlalchemy.engine import ObjectKind
 from sqlalchemy.engine import ObjectScope
-from plaidcloud.utilities.sql_expression import get_select_query
 
 class StarrocksCompileTest(fixtures.TestBase, AssertsCompiledSQL):
 
@@ -55,48 +55,26 @@ class StarrocksCompileTest(fixtures.TestBase, AssertsCompiledSQL):
 class StarrocksMogrifyTest(fixtures.TablesTest, AssertsCompiledSQL):
     # Not strictly a dialect test, but allows me to test why mogrify is not working correctly
     def test_mogrify_query_with_parameters(self, connection):
-        t = table('t1', column('c1'), column('c2'), column('show_vat'))
-        # sel = t.select().where(t.c.c1 == 'something')
-        # self.assert_compile(
-        #     sel,
-        #     result="SELECT t1.c1, t1.c2 FROM t1 WHERE t1.c1 = %(c1_1)s",
-        #     params={'c1_1':'something'},
-        #     render_postcompile=True,
-        # )
-        # compiled = sel.compile(connection, compile_kwargs={"render_postcompile": True})
-        # mog = connection.engine.raw_connection().cursor().mogrify(str(compiled), compiled.params)
-        # assert mog == "SELECT t1.c1, t1.c2 \nFROM t1 \nWHERE t1.c1 = 'something'"
-        #
-        # sel = t.select().where(t.c.c1 == 'Y')
-        # self.assert_compile(
-        #     sel,
-        #     result="SELECT t1.c1, t1.c2 FROM t1 WHERE t1.c1 = %(c1_1)s",
-        #     params={'c1_1':'Y'},
-        #     render_postcompile=True,
-        # )
-        # compiled = sel.compile(connection, compile_kwargs={"render_postcompile": True})
-        # mog = connection.engine.raw_connection().cursor().mogrify(str(compiled), compiled.params)
-        # assert mog == "SELECT t1.c1, t1.c2 \nFROM t1 \nWHERE t1.c1 = 'Y'"
-        #
+        t = table('t1', column('c1'), column('c2'), column('test_param'))
 
-
-        sel = get_select_query(
-            tables=[t],
-            source_columns=[{'name': 'c1'}, {'name': 'c2'}, {'name': 'show_vat'}],
-            target_columns=[{'source': 'c1', 'target': 'c1', 'dtype': 'text'}, {'source': 'c2', 'target': 'c2', 'dtype': 'text'}],
-            wheres=["table.show_vat == 'Y'"],
-            config={},
-            variables={},
+        sel = select(
+            cast(t.c.c1, CHAR(4000)),
+            cast(t.c.c2, CHAR(4000)),
+        ).where(
+            and_(
+                t.c.test_param == 'Y',
+            ),
         )
+
         self.assert_compile(
             sel,
-            result="SELECT CAST(t1.c1 AS CHAR(4000)) AS c1, CAST(t1.c2 AS CHAR(4000)) AS c2 FROM t1 WHERE t1.show_vat = %(show_vat_1)s",
-            params={'show_vat_1':'Y'},
+            result="SELECT CAST(t1.c1 AS CHAR(4000)) AS c1, CAST(t1.c2 AS CHAR(4000)) AS c2 FROM t1 WHERE t1.test_param = %(test_param_1)s",
+            params={'test_param_1':'Y'},
             render_postcompile=True,
         )
         compiled = sel.compile(connection, compile_kwargs={"render_postcompile": True})
         mog = connection.engine.raw_connection().cursor().mogrify(str(compiled).replace('\n', ''), compiled.params)
-        assert mog == "SELECT CAST(t1.c1 AS CHAR(4000)) AS c1, CAST(t1.c2 AS CHAR(4000)) AS c2 FROM t1 WHERE t1.show_vat = 'Y'"
+        assert mog == "SELECT CAST(t1.c1 AS CHAR(4000)) AS c1, CAST(t1.c2 AS CHAR(4000)) AS c2 FROM t1 WHERE t1.test_param = 'Y'"
 
     # def test_select_nonrecursive_round_trip(self, connection):
     #     some_table = self.tables.some_table
@@ -425,96 +403,122 @@ class JSONTest(_JSONTest):
     @testing.skip("starrocks", 'Seems to return "null", not sure why')
     def test_single_element_round_trip(self, element):
         pass
-#
-# # ===================================================================================
-# # Below is the section with manual exclusions which cannot be excluded by Requirements
-# # ===================================================================================
-# from sqlalchemy.testing.suite.test_insert import InsertBehaviorTest
-# from sqlalchemy.testing.suite.test_dialect import ExceptionTest
-# from sqlalchemy.testing.suite.test_select import FetchLimitOffsetTest, LikeFunctionsTest
-# from sqlalchemy.testing.suite.test_ddl import LongNameBlowoutTest
-# from sqlalchemy.testing.suite.test_types import (
-#     DateTest,
-#     DateTimeCoercedToDateTimeTest,
-#     DateTimeTest,
-#     JSONTest,
-#     NumericTest,
-#     StringTest,
-#     BinaryTest,
-#     EnumTest,
-# )
-# from sqlalchemy.testing.suite.test_reflection import (
-#     BizarroCharacterTest,
-#     ComponentReflectionTest,
-#     CompositeKeyReflectionTest,
-#     HasIndexTest,
-#     HasTableTest,
-#     QuotedNameArgumentTest,
-# )
-#
-# # ========== Add missing requires. TODO: Can be deleted when https://github.com/sqlalchemy/sqlalchemy/pull/12362 is merged
-# # BinaryTest.__requires__ = ("binary_literals",)
-# # BizarroCharacterFKResolutionTest.__requires__ = ("primary_key_constraint_reflection",)
-# # QuotedNameArgumentTest.test_get_foreign_keys = lambda *args: None  # missing requires.foreign_key_constraint_reflection
-# # HasIndexTest.__requires__ = ("index_reflection",)
-# # Starrocks does not support FLOAT type for first column
-# NumericTest.test_float_as_decimal = lambda *args: None
-# NumericTest.test_float_as_float = lambda *args: None
-# NumericTest.test_float_custom_scale = lambda *args: None
-# NumericTest.test_render_literal_float = lambda *args: None
-# # Starrocks has no JSON_EXTRACT function
-# # JSONTest.test_index_typed_access = lambda *args: None
-# # JSONTest.test_index_typed_comparison = lambda *args: None
-# # JSONTest.test_path_typed_comparison = lambda *args: None
-# # Syntax error -> Starrocks has no LIKE + ESCAPE
-# # LikeFunctionsTest.test_contains_autoescape = lambda *args: None
-# # LikeFunctionsTest.test_contains_autoescape_escape = lambda *args: None
-# # LikeFunctionsTest.test_contains_escape = lambda *args: None
-# # LikeFunctionsTest.test_endswith_autoescape = lambda *args: None
-# # LikeFunctionsTest.test_endswith_autoescape_escape = lambda *args: None
-# # LikeFunctionsTest.test_endswith_escape = lambda *args: None
-# # LikeFunctionsTest.test_startswith_autoescape = lambda *args: None
-# # LikeFunctionsTest.test_startswith_autoescape_escape = lambda *args: None
-# # LikeFunctionsTest.test_startswith_escape = lambda *args: None
-# # Missing index_reflection
-# # QuotedNameArgumentTest.test_get_indexes = lambda *args: None
-# # ======================================================
-# # ========== Not working "requires" decorators - they seems to be correctly used, but tests are not skipped
-# # QuotedNameArgumentTest.test_get_unique_constraints = lambda *args: None
-# # ComponentReflectionTest.test_get_multi_indexes = lambda *args: None
-# # ComponentReflectionTest.test_get_multi_foreign_keys = lambda *args: None
-# # ComponentReflectionTest.test_get_foreign_keys = lambda *args: None
-# # ComponentReflectionTest.test_get_indexes = lambda *args: None
-# # ComponentReflectionTest.test_get_multi_pk_constraint = lambda *args: None
-# # ComponentReflectionTest.test_get_multi_unique_constraints = lambda *args: None
-# # ComponentReflectionTest.test_get_noncol_index = lambda *args: None
-# # ComponentReflectionTest.test_get_pk_constraint = lambda *args: None
-# # ComponentReflectionTest.test_get_table_names = lambda *args: None
-# # ComponentReflectionTest.test_get_temp_table_columns = lambda *args: None
-# # ComponentReflectionTest.test_get_temp_table_indexes = lambda *args: None
-# # ComponentReflectionTest.test_get_temp_table_unique_constraints = lambda *args: None
-# # ComponentReflectionTest.test_get_unique_constraints = lambda *args: None
-# # ComponentReflectionTest.test_get_unique_constraints = lambda *args: None
-# # ComponentReflectionTest.test_reflect_table_temp_table = lambda *args: None
-# # CompositeKeyReflectionTest.test_fk_column_order = lambda *args: None
-# # CompositeKeyReflectionTest.test_pk_column_order = lambda *args: None
-# # ExceptionTest.test_integrity_error = lambda *args: None
-# # StringTest.test_nolength_string = lambda *args: None
-# # FetchLimitOffsetTest.test_bound_offset = lambda *args: None
-# # FetchLimitOffsetTest.test_bound_limit_offset = lambda *args: None
-# # FetchLimitOffsetTest.test_expr_limit = lambda *args: None
-# # FetchLimitOffsetTest.test_expr_limit_offset = lambda *args: None
-# # FetchLimitOffsetTest.test_expr_limit_simple_offset = lambda *args: None
-# # FetchLimitOffsetTest.test_expr_offset = lambda *args: None
-# # FetchLimitOffsetTest.test_simple_limit_expr_offset = lambda *args: None
-# # FetchLimitOffsetTest.test_simple_offset = lambda *args: None
-# # FetchLimitOffsetTest.test_simple_offset_zero = lambda *args: None
-# # LongNameBlowoutTest.test_long_convention_name = lambda *args: None
-# # ======================================================
-# # ========== Not implemented in reflection
-# ComponentReflectionTest.test_autoincrement_col = lambda *args: None  # There is no information about autoincrement in information_schema.columns
-# # Temporary table is only in information_schema.tables_config, but not in information_schema.tables and not in information_schema.columns
+
+class ServerSideCursorsTest(_ServerSideCursorsTest):
+
+    @testing.combinations(
+        ("global_string", True, lambda stringify: stringify("select 1"), True),
+        (
+            "global_text",
+            True,
+            lambda stringify: text(stringify("select 1")),
+            True,
+        ),
+        ("global_expr", True, select(1), True),
+        (
+            "global_off_explicit",
+            False,
+            lambda stringify: text(stringify("select 1")),
+            False,
+        ),
+        (
+            "stmt_option",
+            False,
+            select(1).execution_options(stream_results=True),
+            True,
+        ),
+        (
+            "stmt_option_disabled",
+            True,
+            select(1).execution_options(stream_results=False),
+            False,
+        ),
+        # Omit unsupported FOR UPDATE
+        # ("for_update_expr", True, select(1).with_for_update(), True),
+        # # TODO: need a real requirement for this, or dont use this test
+        # (
+        #     "for_update_string",
+        #     True,
+        #     lambda stringify: stringify("SELECT 1 FOR UPDATE"),
+        #     True,
+        #     testing.skip_if(["sqlite", "mssql"]),
+        # ),
+        (
+            "text_no_ss",
+            False,
+            lambda stringify: text(stringify("select 42")),
+            False,
+        ),
+        (
+            "text_ss_option",
+            False,
+            lambda stringify: text(stringify("select 42")).execution_options(
+                stream_results=True
+            ),
+            True,
+        ),
+        id_="iaaa",
+        argnames="engine_ss_arg, statement, cursor_ss_status",
+    )
+    def test_ss_cursor_status(
+        self, engine_ss_arg, statement, cursor_ss_status
+    ):
+        engine = self._fixture(engine_ss_arg)
+        with engine.begin() as conn:
+            if callable(statement):
+                statement = testing.resolve_lambda(
+                    statement, stringify=self.stringify
+                )
+
+            if isinstance(statement, str):
+                result = conn.exec_driver_sql(statement)
+            else:
+                result = conn.execute(statement)
+            eq_(self._is_server_side(result.cursor), cursor_ss_status)
+            result.close()
+    #
+    # def test_roundtrip_fetchall(self, metadata):
+    #     md = self.metadata
+    #
+    #     engine = self._fixture(True)
+    #     test_table = Table(
+    #         "test_table",
+    #         md,
+    #         Column(
+    #             "id", Integer, primary_key=True, test_needs_autoincrement=True
+    #         ),
+    #         Column("data", String(50)),
+    #     )
+    #
+    #     with engine.begin() as connection:
+    #         test_table.create(connection, checkfirst=True)
+    #         connection.execute(test_table.insert(), dict(data="data1"))
+    #         connection.execute(test_table.insert(), dict(data="data2"))
+    #         eq_(
+    #             connection.execute(
+    #                 test_table.select().order_by(test_table.c.id)
+    #             ).fetchall(),
+    #             [(1, "data1"), (2, "data2")],
+    #         )
+    #         connection.execute(
+    #             test_table.update()
+    #             .where(test_table.c.id == 2)
+    #             .values(data=test_table.c.data + " updated")
+    #         )
+    #         eq_(
+    #             connection.execute(
+    #                 test_table.select().order_by(test_table.c.id)
+    #             ).fetchall(),
+    #             [(1, "data1"), (2, "data2 updated")],
+    #         )
+    #         connection.execute(test_table.delete())
+    #         eq_(
+    #             connection.scalar(
+    #                 select(func.count("*")).select_from(test_table)
+    #             ),
+    #             0,
+    #         )
 
 EnumTest.__requires__ = ("enums",)  # Fix Enum handling. Mysql has native ENUM type, but Starrocks has not
 LongNameBlowoutTest.__requires__ = ("index_reflection",)  # This will do to make it skip for now, no multiple column index
-# # ======================================================
+CompositeKeyReflectionTest.__requires__ = ('primary_key_constraint_reflection',) # This will make it also skip the fixture which is not creating succesfully

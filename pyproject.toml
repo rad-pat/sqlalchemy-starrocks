@@ -59,6 +59,7 @@ version = {attr = "starrocks.__version__"}
 [project.optional-dependencies]
 test = [
     "pytest",
+    "pytest-xdist",
     "mock",
 ]
 
@@ -94,6 +95,6 @@ exclude = '''
 '''
 
 [tool.pytest.ini_options]
-addopts = "--tb native -v -r fxX --maxfail=25 -p no:warnings"
+addopts = "--tb native -n4 -v -r fxX --maxfail=25 -p no:warnings"
 python_files = "test/*test_*.py"
 #python_functions = "test_insert_from_files_parquet"

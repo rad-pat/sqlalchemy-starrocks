@@ -83,7 +83,7 @@ class Requirements(SuiteRequirements):
 
         """
 
-        return exclusions.open()
+        return exclusions.closed()
 
     @property
     def datetime_implicit_bound(self):
@@ -226,3 +226,8 @@ class Requirements(SuiteRequirements):
     def enums(self):
         """target database supports ENUM type"""
         return exclusions.closed()
+
+    @property
+    def unicode_ddl(self):
+        return exclusions.open()
+
