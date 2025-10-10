@@ -189,16 +189,16 @@ class StarRocksSQLCompiler(MySQLCompiler):
 
     def visit_insert_into_files(self, insert_into, **kw):
         return (
-            f"INSERT INTO {insert_into.target._compiler_dispatch(self, **kw)}"
-            f" FROM {insert_into.from_._compiler_dispatch(self, **kw)}"
+            f"INSERT INTO {self.process(insert_into.target, **kw)}"
+            f" FROM {self.process(insert_into.from_, **kw)}"
         )
 
     def visit_files_target(self, files, **kw):
         target_items = []
-        target_items.append(files.storage._compiler_dispatch(self, **kw))
-        target_items.append(files.format._compiler_dispatch(self, **kw))
+        target_items.append(self.process(files.storage, **kw))
+        target_items.append(self.process(files.format, **kw))
         if files.options is not None:
-            target_items.append(files.options._compiler_dispatch(self, **kw))
+            target_items.append(self.process(files.options, **kw))
         files_str = "\n".join(target_items)
         return f"FILES(\n{files_str}\n)"
 
@@ -224,7 +224,7 @@ class StarRocksSQLCompiler(MySQLCompiler):
         target = (
             self.preparer.format_table(insert_from.target)
             if isinstance(insert_from.target, (TableClause,))
-            else insert_from.target._compiler_dispatch(self, **kw)
+            else self.process(insert_from.target, **kw)
         )
 
         if isinstance(insert_from.columns, str):
@@ -232,7 +232,7 @@ class StarRocksSQLCompiler(MySQLCompiler):
         else:
             select_str = ",".join(
                 [
-                    col._compiler_dispatch(self, **kw)
+                    self.process(col, **kw)
                     for col in insert_from.columns
                 ]
             )
@@ -240,15 +240,15 @@ class StarRocksSQLCompiler(MySQLCompiler):
         return (
             f"INSERT INTO {target}"
             f" SELECT {select_str}"
-            f" FROM {insert_from.from_._compiler_dispatch(self, **kw)}"
+            f" FROM {self.process(insert_from.from_, **kw)}"
         )
 
     def visit_files_source(self, files, **kw):
         source_items = []
-        source_items.append(files.storage._compiler_dispatch(self, **kw))
-        source_items.append(files.format._compiler_dispatch(self, **kw))
+        source_items.append(self.process(files.storage, **kw))
+        source_items.append(self.process(files.format, **kw))
         if files.options is not None:
-            source_items.append(files.options._compiler_dispatch(self, **kw))
+            source_items.append(self.process(files.options, **kw))
         files_str = "\n".join(source_items)
         return f"FILES(\n{files_str}\n)"
 
