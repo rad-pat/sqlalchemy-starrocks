@@ -13,10 +13,10 @@
 # limitations under the License.
 import re
 from textwrap import dedent
-import time
-from typing import Union, Optional, Any
+from typing import Union, Any
 
-from sqlalchemy import Connection, exc, schema as sa_schema
+from sqlalchemy import exc, schema as sa_schema
+from sqlalchemy.engine import Connection
 from sqlalchemy.dialects.mysql.pymysql import MySQLDialect_pymysql
 from sqlalchemy.dialects.mysql.base import (
     MySQLDDLCompiler,
@@ -177,10 +177,10 @@ class StarRocksSQLCompiler(MySQLCompiler):
 
     def visit_typeclause(
         self,
-        typeclause: elements.TypeClause,
-        type_: Optional[type_api.TypeEngine[Any]] = None,
+        typeclause,
+        type_=None,
         **kw: Any,
-    ) -> Optional[str]:
+    ):
         if type_ is None:
             type_ = typeclause.type.dialect_impl(self.dialect)
         if isinstance(type_, sqltypes.Boolean):
@@ -507,9 +507,9 @@ class StarRocksDialect(MySQLDialect_pymysql):
     def _show_create_table(
         self,
         connection: Connection,
-        table: Optional[Table],
-        charset: Optional[str] = None,
-        full_name: Optional[str] = None,
+        table,
+        charset=None,
+        full_name=None,
     ) -> str:
         """Run SHOW CREATE TABLE for a ``Table``."""
         try:
@@ -590,9 +590,9 @@ class StarRocksDialect(MySQLDialect_pymysql):
     @reflection.cache
     def _setup_parser(
         self,
-        connection: Connection,
-        table_name: str,
-        schema: Union[str, None] = None,
+        connection,
+        table_name,
+        schema=None,
         **kw,
     ):
         charset = self._connection_charset

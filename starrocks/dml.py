@@ -15,7 +15,9 @@
 from enum import Enum
 from urllib.parse import urlparse
 
-from sqlalchemy import Table, TableClause, UpdateBase, ClauseElement
+from sqlalchemy.schema import Table
+from sqlalchemy.sql import TableClause, ClauseElement
+from sqlalchemy.sql.dml import UpdateBase
 from sqlalchemy.sql.roles import FromClauseRole
 
 

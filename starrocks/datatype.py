@@ -15,13 +15,11 @@
 import datetime
 import logging
 import re
-from typing import Optional, List, Any, Type, Dict, Callable, Literal
+from typing import Optional, List, Any, Type, Dict, Callable
 
 from sqlalchemy.engine import Dialect
 from sqlalchemy.sql import sqltypes
 from sqlalchemy.sql.type_api import TypeEngine
-from sqlalchemy.dialects.mysql.types import TINYINT, SMALLINT, INTEGER, BIGINT, DECIMAL, DOUBLE, FLOAT, CHAR, VARCHAR, DATETIME
-from sqlalchemy.dialects.mysql.json import JSON
 
 logger = logging.getLogger(__name__)
 
