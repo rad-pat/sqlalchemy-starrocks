@@ -199,23 +199,23 @@ class StarRocksSQLCompiler(MySQLCompiler):
         target_items.append(self.process(files.format, **kw))
         if files.options is not None:
             target_items.append(self.process(files.options, **kw))
-        files_str = "\n".join(target_items)
+        files_str = ",\n".join(target_items)
         return f"FILES(\n{files_str}\n)"
 
     def visit_cloud_storage(self, storage, **kw):
-        return '\n'.join([
+        return ',\n'.join([
             f'{repr(k)} = {repr(v)}'
             for k, v in storage.options.items()
         ])
 
     def visit_files_format(self, files_format, **kw):
-        return '\n'.join([
+        return ',\n'.join([
             f'{repr(k)} = {repr(v)}'
             for k, v in files_format.options.items()
         ])
 
     def visit_files_options(self, files_options, **kw):
-        return '\n'.join([
+        return ',\n'.join([
             f'{repr(k)} = {repr(v)}'
             for k, v in files_options.options.items()
         ])
@@ -249,7 +249,7 @@ class StarRocksSQLCompiler(MySQLCompiler):
         source_items.append(self.process(files.format, **kw))
         if files.options is not None:
             source_items.append(self.process(files.options, **kw))
-        files_str = "\n".join(source_items)
+        files_str = ",\n".join(source_items)
         return f"FILES(\n{files_str}\n)"
 
 class StarRocksDDLCompiler(MySQLDDLCompiler):

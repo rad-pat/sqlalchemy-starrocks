@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from enum import Enum
-from types import NoneType
 from urllib.parse import urlparse
 
 from sqlalchemy import Table, TableClause, UpdateBase, ClauseElement
@@ -136,11 +135,11 @@ class FilesTargetOptions(_FilesOptions):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        if not isinstance(single, NoneType):
+        if single is not None:
             self.options["single"] = "true" if single else "false"
-        if not isinstance(target_max_files_size, NoneType):
-            self.options["target_max_files_size "] = target_max_files_size
-        if not isinstance(partitioned_by, NoneType):
+        if target_max_files_size is not None:
+            self.options["target_max_files_size"] = target_max_files_size
+        if partitioned_by is not None:
             self.options["partitioned_by"] = partitioned_by
 
 
@@ -179,8 +178,8 @@ class FilesSourceOptions(_FilesOptions):
             self.options["list_files_only"] = str(list_files_only).lower()
         if isinstance(list_recursively, bool):
             self.options["list_recursively"] = str(list_recursively).lower()
-        if not isinstance(columns_from_path, NoneType):
-            self.options["columns_from_path "] = columns_from_path
+        if columns_from_path is not None:
+            self.options["columns_from_path"] = columns_from_path
 
 class Compression(Enum):
     NONE = "uncompressed"
@@ -328,7 +327,7 @@ class ORCFormat(FilesFormat):
 class _StorageClause(ClauseElement):
     __visit_name__ = "cloud_storage"
     __uri_scheme__ = None
-    __option_prefix = ''
+    __option_prefix__ = ''
 
     def __init__(
         self,
@@ -344,7 +343,7 @@ class _StorageClause(ClauseElement):
         self.options.update(kwargs)  # Allow use of any other parameters
 
     def add_option(self, option_name, value):
-        self.options[f'{self.__option_prefix}.{option_name}'] = value
+        self.options[f'{self.__option_prefix__}.{option_name}'] = value
 
     def __repr__(self):
         return "\n".join([f"{k} = {v}" for k, v in self.options.items()])
@@ -352,7 +351,7 @@ class _StorageClause(ClauseElement):
 class AmazonS3(_StorageClause):
     """Amazon S3"""
     __uri_scheme__ = "s3"
-    __option_prefix = 'aws.s3'
+    __option_prefix__ = 'aws.s3'
 
     def __init__(
         self,
@@ -379,7 +378,7 @@ class AmazonS3(_StorageClause):
 
 class OtherS3Compatibile(_StorageClause):
     __uri_scheme__ = "s3"
-    __option_prefix = 'aws.s3'
+    __option_prefix__ = 'aws.s3'
 
     def __init__(
         self,
@@ -407,7 +406,7 @@ class OtherS3Compatibile(_StorageClause):
 class AzureBlobStorage(_StorageClause):
     """Microsoft Azure Blob Storage"""
     __uri_scheme__ = "azure"
-    __option_prefix = 'azure.blob'
+    __option_prefix__ = 'azure.blob'
 
     def __init__(
         self, *,
@@ -437,6 +436,7 @@ class AzureBlobStorage(_StorageClause):
 
 class AzureDataLakeStorage1(_StorageClause):
     """Microsoft Azure Data Lake Storage Gen1"""
+    __uri_scheme__ = "wasb"
     __option_prefix__ = 'azure.adls2'
 
     def __init__(
@@ -462,6 +462,7 @@ class AzureDataLakeStorage1(_StorageClause):
 
 class AzureDataLakeStorage2(_StorageClause):
     """Microsoft Azure Data Lake Storage2"""
+    __uri_scheme__ = "wasb"
     __option_prefix__ = 'azure.adls2'
 
     def __init__(
@@ -477,7 +478,7 @@ class AzureDataLakeStorage2(_StorageClause):
         oauth2_client_endpoint: str = None,
         **kwargs,
     ):
-        super().__init__(uri=uri)
+        super().__init__(uri=uri, **kwargs)
 
         if shared_key:
             self.add_option('shared_key', shared_key)
@@ -497,6 +498,7 @@ class AzureDataLakeStorage2(_StorageClause):
 class GoogleCloudStorage(_StorageClause):
     """Google Cloud Storage"""
     __uri_scheme__ = "gs"
+    __option_prefix__ = "gcp.gcs"
 
     def __init__(
         self,
@@ -511,19 +513,20 @@ class GoogleCloudStorage(_StorageClause):
     ):
         super().__init__(uri=uri, **kwargs)
         if isinstance(use_compute_engine_service_account, bool):
-            self.options['use_compute_engine_service_account'] = str(use_compute_engine_service_account).lower()
+            self.add_option('use_compute_engine_service_account', str(use_compute_engine_service_account).lower())
         if service_account_email:
-            self.options['gcp.gcs.service_account_email'] = service_account_email
+            self.add_option('service_account_email', service_account_email)
         if service_account_private_key_id:
-            self.options['gcp.gcs.service_account_private_key_id'] = service_account_private_key_id
+            self.add_option('service_account_private_key_id', service_account_private_key_id)
         if service_account_private_key:
-            self.options['gcp.gcs.service_account_private_key'] = service_account_private_key
+            self.add_option('service_account_private_key', service_account_private_key)
         if impersonation_service_account:
-            self.options['gcp.gcs.impersonation_service_account'] = impersonation_service_account
+            self.add_option('impersonation_service_account', impersonation_service_account)
 
 class HadoopHDFSStorage(_StorageClause):
     """Hadoop HDFS"""
     __uri_scheme__ = "hdfs"
+    __option_prefix__ = 'hadoop'
 
     def __init__(
         self,
@@ -534,6 +537,7 @@ class HadoopHDFSStorage(_StorageClause):
         **kwargs,
     ):
         super().__init__(uri=uri, **kwargs)
+        # N.B. Not using add_option in this case because the option_prefix is not particularly obvious
         self.options['hadoop.security.authentication'] = 'true'
         if username:
             self.options['username'] = username
