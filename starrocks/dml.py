@@ -202,10 +202,12 @@ class FilesFormat(ClauseElement):
     __visit_name__ = "files_format"
     __format_type__ = None
 
-    def __init__(self):
+    def __init__(self, compression: Compression = None, **kwargs):
         self.options = dict()
         if self.__format_type__:
             self.options['format'] = self.__format_type__
+        if compression:
+            self.options["compression"] = compression.value
 
     def __repr__(self):
         """
@@ -214,6 +216,12 @@ class FilesFormat(ClauseElement):
         """
         return f"{self.options}"
 
+    def add_option(self, name, value):
+        if self.__format_type__ is None:
+            raise Exception(f'Format type is not set for format {self.__class__}')
+        self.options[f'{self.__format_type__}.{name}'] = value
+
+
 class CSVFormat(FilesFormat):
     __format_type__ = "csv"
 
@@ -221,41 +229,51 @@ class CSVFormat(FilesFormat):
         self,
         *,
         column_separator: str = None,
-        row_delimiter: str = None,  # Note, this is "line_delimiter" when unloading for some daft reason
+        row_delimiter: str = None,
+        line_delimiter: str = None,
         enclose: str = None,
         escape: str = None,
         skip_header: int = None,
         trim_space: bool = None,
         compression: Compression = None,
+        **kwargs,
     ):
-        super().__init__()
+        super().__init__(compression, **kwargs)
+        if row_delimiter is not None and line_delimiter is not None:
+            raise Exception('Only specify one of row_delimiter (for load) or line_delimiter (for unload)')
         if row_delimiter:
             if (
                 len(str(row_delimiter).encode().decode("unicode_escape")) != 1
                 and row_delimiter != "\r\n"
             ):
                 raise TypeError("Record Delimiter should be a single character.")
-            self.options["row_delimiter"] = row_delimiter
+            self.add_option("row_delimiter", row_delimiter)
+        if line_delimiter:
+            if (
+                len(str(line_delimiter).encode().decode("unicode_escape")) != 1
+                and line_delimiter != "\r\n"
+            ):
+                raise TypeError("Record Delimiter should be a single character.")
+            self.add_option("line_delimiter", line_delimiter)
         if column_separator:
             if len(str(column_separator).encode().decode("unicode_escape")) != 1:
                 raise TypeError("Column Separator should be a single character")
-            self.options["column_separator"] = column_separator
+            self.add_option("column_separator", column_separator)
         if enclose:
             if enclose not in ["'", '"', "`"]:
                 raise TypeError("Enclose character must be one of [', \", `].")
-            self.options["enclose"] = enclose
+            self.add_option("enclose", enclose)
         if escape:
             if escape not in ["\\", ""]:
                 raise TypeError('Escape character must be "\\" or "".')
-            self.options["escape"] = escape
+            self.add_option("escape", escape)
         if skip_header:
             if skip_header < 0:
                 raise TypeError("Skip header must be positive integer.")
-            self.options["skip_header"] = skip_header
+            self.add_option("skip_header", skip_header)
         if isinstance(trim_space, bool):
-            self.options["trim_space"] = str(trim_space).lower()
-        if compression:
-            self.options["compression"] = compression.value
+            self.add_option("trim_space", trim_space)
+
 
 class ParquetFormat(FilesFormat):
     __format_type__ = "parquet"
@@ -266,22 +284,21 @@ class ParquetFormat(FilesFormat):
         use_legacy_encoding: bool = None, # for unloading only
         version: str = None, # for unloading only
         compression: Compression = None,
+        **kwargs,
     ):
-        super().__init__()
+        super().__init__(compression, **kwargs)
         if use_legacy_encoding is not None:
-            self.options["parquet.use_legacy_encoding"] = use_legacy_encoding
+            self.add_option("use_legacy_encoding", use_legacy_encoding)
         if version:
-            self.options["parquet.version"] = version
-        if compression:
-            self.options["compression"] = compression.value
+            self.add_option("version", version)
 
 class AVROFormat(FilesFormat):
     __format_type__ = "avro"
 
     def __init__(
-        self,
+        self, **kwargs,
     ):
-        super().__init__()
+        super().__init__(**kwargs)
 
 class ORCFormat(FilesFormat):
     __format_type__ = "orc"
@@ -290,10 +307,9 @@ class ORCFormat(FilesFormat):
         self,
         *,
         compression: Compression = None,
+        **kwargs,
     ):
-        super().__init__()
-        if compression:
-            self.options["compression"] = compression.value
+        super().__init__(compression, **kwargs)
 
 # ToDo - Not yet supported
 # class JSONFormat(FilesFormat):
@@ -348,7 +364,7 @@ class _StorageClause(ClauseElement):
         self.options[f'{self.__option_prefix__}.{option_name}'] = value
 
     def __repr__(self):
-        return "\n".join([f"{k} = {v}" for k, v in self.options.items()])
+        return ",\n".join([f"{k} = {v}" for k, v in self.options.items()])
 
 class AmazonS3(_StorageClause):
     """Amazon S3"""

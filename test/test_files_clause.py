@@ -60,7 +60,7 @@ class CompileStarrocksInsertIntoFilesTest(fixtures.TestBase, AssertsCompiledSQL)
                 ),
                 format=CSVFormat(
                     column_separator=',',
-                    row_delimiter='\n',
+                    line_delimiter='\n',
                     enclose='"',
                 ),
                 options=FilesTargetOptions(
@@ -79,11 +79,12 @@ class CompileStarrocksInsertIntoFilesTest(fixtures.TestBase, AssertsCompiledSQL)
                 "'gcp.gcs.service_account_private_key_id' = 'mykey',"
                 "'gcp.gcs.service_account_private_key' = 'some_private_key',"
                 "'format' = 'csv',"
-                "'row_delimiter' = '\\n',"
-                "'column_separator' = ',',"
-                "'enclose' = '\"',"
+                "'csv.line_delimiter' = '\\n',"
+                "'csv.column_separator' = ',',"
+                "'csv.enclose' = '\"',"
                 "'single' = 'true'"
-                ") FROM SELECT test_schema.atable.id FROM test_schema.atable"
+                ")"
+                " SELECT test_schema.atable.id FROM test_schema.atable"
             ),
         )
 
@@ -129,9 +130,9 @@ class CompileStarrocksInsertFromFilesTest(fixtures.TestBase, AssertsCompiledSQL)
                 "'gcp.gcs.service_account_private_key_id' = 'mykey',"
                 "'gcp.gcs.service_account_private_key' = 'some_private_key',"
                 "'format' = 'csv',"
-                "'row_delimiter' = '\\n',"
-                "'column_separator' = ',',"
-                "'enclose' = '\"'"
+                "'csv.row_delimiter' = '\\n',"
+                "'csv.column_separator' = ',',"
+                "'csv.enclose' = '\"'"
                 ")"
             ),
         )
@@ -202,7 +203,8 @@ class CompileStarrocksInsertFromFilesTest(fixtures.TestBase, AssertsCompiledSQL)
             insert_from_files,
             (
                 "INSERT INTO test_schema.atable "
-                "SELECT $1, $2, $3 FROM FILES("
+                "SELECT $1, $2, $3"
+                " FROM FILES("
                 "'path' = 'gs://starrocks/atable.parquet',"
                 "'gcp.gcs.service_account_email' = 'x@y.z',"
                 "'gcp.gcs.service_account_private_key_id' = 'mykey',"
@@ -241,7 +243,8 @@ class CompileStarrocksInsertFromFilesTest(fixtures.TestBase, AssertsCompiledSQL)
             insert_from_files,
             (
                 "INSERT INTO test_schema.atable "
-                "SELECT IF($1 = %(1_1)s, %(IF_1)s, %(IF_2)s) FROM FILES("
+                "SELECT IF($1 = %(1_1)s, %(IF_1)s, %(IF_2)s)"
+                " FROM FILES("
                 "'path' = 'gs://starrocks/atable.parquet',"
                 "'gcp.gcs.service_account_email' = 'x@y.z',"
                 "'gcp.gcs.service_account_private_key_id' = 'mykey',"

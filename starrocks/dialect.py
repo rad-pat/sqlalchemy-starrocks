@@ -189,8 +189,8 @@ class StarRocksSQLCompiler(MySQLCompiler):
 
     def visit_insert_into_files(self, insert_into, **kw):
         return (
-            f"INSERT INTO {self.process(insert_into.target, **kw)}"
-            f" FROM {self.process(insert_into.from_, **kw)}"
+            f"INSERT INTO {self.process(insert_into.target, **kw)}\n"
+            f" {self.process(insert_into.from_, **kw)}"
         )
 
     def visit_files_target(self, files, **kw):
@@ -238,8 +238,8 @@ class StarRocksSQLCompiler(MySQLCompiler):
             )
 
         return (
-            f"INSERT INTO {target}"
-            f" SELECT {select_str}"
+            f"INSERT INTO {target}\n"
+            f" SELECT {select_str}\n"
             f" FROM {self.process(insert_from.from_, **kw)}"
         )
 
