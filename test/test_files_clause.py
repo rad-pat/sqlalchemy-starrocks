@@ -62,6 +62,7 @@ class CompileStarrocksInsertIntoFilesTest(fixtures.TestBase, AssertsCompiledSQL)
                     column_separator=',',
                     line_delimiter='\n',
                     enclose='"',
+                    skip_header=1,
                 ),
                 options=FilesTargetOptions(
                     single=True,
@@ -82,6 +83,7 @@ class CompileStarrocksInsertIntoFilesTest(fixtures.TestBase, AssertsCompiledSQL)
                 "'csv.line_delimiter' = '\\n',"
                 "'csv.column_separator' = ',',"
                 "'csv.enclose' = '\"',"
+                "'csv.skip_header' = '1',"
                 "'single' = 'true'"
                 ")"
                 " SELECT test_schema.atable.id FROM test_schema.atable"

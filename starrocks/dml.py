@@ -267,10 +267,10 @@ class CSVFormat(FilesFormat):
             if escape not in ["\\", ""]:
                 raise TypeError('Escape character must be "\\" or "".')
             self.add_option("escape", escape)
-        if skip_header:
+        if skip_header is not None:
             if skip_header < 0:
                 raise TypeError("Skip header must be positive integer.")
-            self.add_option("skip_header", skip_header)
+            self.add_option("skip_header", str(skip_header))
         if isinstance(trim_space, bool):
             self.add_option("trim_space", trim_space)
 
