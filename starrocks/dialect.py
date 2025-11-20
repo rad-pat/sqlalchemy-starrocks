@@ -153,6 +153,26 @@ class StarRocksTypeCompiler(MySQLTypeCompiler):
 
 
 class StarRocksSQLCompiler(MySQLCompiler):
+    def update_tables_clause(self, update_stmt, from_table, extra_froms, **kw):
+        """Provide a hook to override the initial table clause
+        in an UPDATE statement.
+
+        MySQL overrides this.
+
+        """
+        return super(MySQLCompiler, self).update_tables_clause(
+            update_stmt, from_table, extra_froms, **kw
+        )
+
+    def update_from_clause(
+        self, update_stmt, from_table, extra_froms, from_hints, **kw
+    ):
+        kw["asfrom"] = True
+        return "FROM " + ", ".join(
+            t._compiler_dispatch(self, fromhints=from_hints, **kw)
+            for t in extra_froms
+        )
+
     def visit_delete(self, delete_stmt, **kw):
         result = super().visit_delete(delete_stmt, **kw)
         compile_state = delete_stmt._compile_state_factory(delete_stmt, self, **kw)
