@@ -22,6 +22,9 @@ from sqlalchemy import (
     func,
     MetaData,
     literal_column,
+    select,
+    String,
+    cast,
 )
 
 from starrocks import (
@@ -256,5 +259,37 @@ class CompileStarrocksInsertFromFilesTest(fixtures.TestBase, AssertsCompiledSQL)
                 ")"
             ),
             checkparams={"1_1": "xyz", "IF_1": "NULL", "IF_2": "NOTNULL"},
+        )
+
+class CompileStarrocksSelectFromFilesTableTest(fixtures.TestBase, AssertsCompiledSQL):
+    __only_on__ = "starrocks"
+
+    def test_select_from_files_column_expr(self):
+        t_files = FilesSource(
+            storage=GoogleCloudStorage(
+                uri='gs://starrocks/atable.parquet',
+                service_account_email='x@y.z',
+                service_account_private_key_id='mykey',
+                service_account_private_key='some_private_key',
+            ),
+            format=ParquetFormat(
+                compression=Compression.SNAPPY
+            ),
+        ).table_valued(literal_column("$1"))
+
+
+        self.assert_compile(
+            select(cast(t_files.c['$1'], String).label('Col1')),
+            (
+                "SELECT CAST(anon_1.$1 AS CHAR) AS `Col1`"
+                " FROM FILES("
+                "'path' = 'gs://starrocks/atable.parquet',"
+                "'gcp.gcs.service_account_email' = 'x@y.z',"
+                "'gcp.gcs.service_account_private_key_id' = 'mykey',"
+                "'gcp.gcs.service_account_private_key' = 'some_private_key',"
+                "'format' = 'parquet',"
+                "'compression' = 'snappy'"
+                ") AS anon_1"
+            ),
         )
 

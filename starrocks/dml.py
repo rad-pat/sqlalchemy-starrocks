@@ -18,10 +18,10 @@ from urllib.parse import urlparse
 from sqlalchemy.schema import Table
 from sqlalchemy.sql import TableClause, ClauseElement
 from sqlalchemy.sql.dml import UpdateBase
-from sqlalchemy.sql.roles import FromClauseRole
+from sqlalchemy.sql.functions import FunctionElement
 
 
-class FilesClause(ClauseElement, FromClauseRole):
+class FilesClause(ClauseElement):
     __visit_name__ = 'files'
 
     def __init__(self, format: "FilesFormat", options: "_FilesOptions" = None):
@@ -145,8 +145,9 @@ class FilesTargetOptions(_FilesOptions):
             self.options["partitioned_by"] = partitioned_by
 
 
-class FilesSource(FilesClause):
+class FilesSource(FilesClause, FunctionElement):
     __visit_name__ = 'files_source'
+    inherit_cache = False
 
     def __init__(
         self,
@@ -165,6 +166,7 @@ class FilesSource(FilesClause):
         """
 
         return f"FILES(\n{repr(self.storage)}\n{repr(self.format)}\n{repr(self.options)}\n)"
+
 
 class FilesSourceOptions(_FilesOptions):
     def __init__(
