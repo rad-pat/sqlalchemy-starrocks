@@ -743,7 +743,7 @@ class StarRocksDialect(MySQLDialect_pymysql):
         try:
             return super().has_table(connection, table_name, schema, **kw)
         except exc.DBAPIError as e:
-            if self._extract_error_code(e.orig) in (5501, 5502):
+            if self._extract_error_code(e.orig) in (5501, 5502) or 'not exist' in str(e):
                 return False
             raise
     #
