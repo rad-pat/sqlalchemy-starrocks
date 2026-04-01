@@ -92,7 +92,7 @@ class Requirements(SuiteRequirements):
         a plain string.
         https://github.com/sqlalchemy/sqlalchemy/discussions/9661
         """
-        return exclusions.closed()
+        return exclusions.open()
 
     @property
     def duplicate_key_raises_integrity_error(self):
@@ -164,7 +164,7 @@ class Requirements(SuiteRequirements):
     @property
     def comment_reflection(self):
         """Indicates if the database support table comment reflection"""
-        return exclusions.closed()  # Does not support column comments
+        return exclusions.open()  # Does not support column comments before version 4?
 
     @property
     def sane_rowcount(self):
@@ -230,4 +230,3 @@ class Requirements(SuiteRequirements):
     @property
     def unicode_ddl(self):
         return exclusions.open()
-

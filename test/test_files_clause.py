@@ -27,7 +27,7 @@ from sqlalchemy import (
     cast,
 )
 
-from starrocks import (
+from starrocks.sql.dml import (
     InsertIntoFiles,
     FilesTarget,
     FilesTargetOptions,
@@ -261,6 +261,7 @@ class CompileStarrocksInsertFromFilesTest(fixtures.TestBase, AssertsCompiledSQL)
             checkparams={"1_1": "xyz", "IF_1": "NULL", "IF_2": "NOTNULL"},
         )
 
+
 class CompileStarrocksSelectFromFilesTableTest(fixtures.TestBase, AssertsCompiledSQL):
     __only_on__ = "starrocks"
 
@@ -279,9 +280,12 @@ class CompileStarrocksSelectFromFilesTableTest(fixtures.TestBase, AssertsCompile
 
 
         self.assert_compile(
-            select(cast(t_files.c['$1'], String).label('Col1')),
+            select(
+                cast(t_files.c['$1'], String).label('Col1'),
+                func.IF(t_files.c['$1'] == "xyz", "NULL", t_files.c['$1']).label('Col2'),
+            ),
             (
-                "SELECT CAST(anon_1.$1 AS CHAR) AS `Col1`"
+                "SELECT CAST(anon_1.$1 AS CHAR) AS `Col1`, IF(anon_1.$1 = %(1_1)s, %(IF_1)s, anon_1.$1) AS `Col2`"
                 " FROM FILES("
                 "'path' = 'gs://starrocks/atable.parquet',"
                 "'gcp.gcs.service_account_email' = 'x@y.z',"
@@ -291,5 +295,6 @@ class CompileStarrocksSelectFromFilesTableTest(fixtures.TestBase, AssertsCompile
                 "'compression' = 'snappy'"
                 ") AS anon_1"
             ),
+            checkparams={"1_1": "xyz", "IF_1": "NULL"},
         )
 

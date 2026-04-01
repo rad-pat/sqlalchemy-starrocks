@@ -13,44 +13,105 @@
 # limitations under the License.
 
 import decimal
+import logging
 
-from sqlalchemy.testing.suite import *
+from sqlalchemy import (
+    Integer,
+    MetaData,
+    String,
+    Table,
+    and_,
+    cast,
+    column,
+    literal,
+    schema,
+    select,
+    table,
+    testing,
+    text,
+    type_coerce,
+    union,
+)
+from sqlalchemy.engine import ObjectKind, ObjectScope
+from sqlalchemy.sql.sqltypes import CHAR, Float
+from sqlalchemy.testing import config, fixtures
+from sqlalchemy.testing.assertions import AssertsCompiledSQL, eq_
+from sqlalchemy.testing.schema import Column
+from sqlalchemy.testing.suite import *  # noqa: F403, I001
 from sqlalchemy.testing.suite import (
     ComponentReflectionTest as _ComponentReflectionTest,
-    FetchLimitOffsetTest as _FetchLimitOffsetTest,
-    NumericTest as _NumericTest,
-    StringTest as _StringTest,
     CTETest as _CTETest,
+    CompositeKeyReflectionTest,
+    EnumTest,
+    FetchLimitOffsetTest as _FetchLimitOffsetTest,
     JSONTest as _JSONTest,
+    LongNameBlowoutTest,
+    NumericTest as _NumericTest,
     ServerSideCursorsTest as _ServerSideCursorsTest,
+    StringTest as _StringTest,
 )
+from sqlalchemy.testing.util import mock
 
-from sqlalchemy.testing.assertions import AssertsCompiledSQL
-from sqlalchemy import Table, Column, Integer, MetaData, select
-from sqlalchemy import schema, type_coerce, and_, cast
+from starrocks.datatype import INTEGER
+from test import test_utils
 
-from sqlalchemy.testing import fixtures
-from sqlalchemy import testing, literal
-from sqlalchemy.testing.assertions import eq_
-from sqlalchemy.sql.sqltypes import Float, CHAR
-from sqlalchemy.engine import ObjectKind
-from sqlalchemy.engine import ObjectScope
 
-class StarrocksCompileTest(fixtures.TestBase, AssertsCompiledSQL):
+logger = logging.getLogger(__name__)
+
+
+class SRAssertsCompiledSQLMixin:
+    def assert_compile_normalized(self, clause, expected, **kw):
+        """Compile and compare SQL using normalize_sql for format-independent comparison."""
+
+        dialect = kw.get('dialect')
+        if dialect is None:
+            dialect = getattr(self, "__dialect__", None)
+        if dialect is None:
+            dialect = config.db.dialect
+        # logger.debug(f"dialect: {dialect}")
+
+        compiled = clause.compile(dialect=dialect, **kw.get('compile_kwargs', {}))
+        actual_sql = str(compiled)
+
+        normalized_actual = test_utils.normalize_sql(actual_sql)
+        normalized_expected = test_utils.normalize_sql(expected)
+
+        assert normalized_actual == normalized_expected, (
+            f"\nActual (normalized):   {normalized_actual}\n"
+            f"Expected (normalized): {normalized_expected}\n"
+            f"Actual (raw):\n{actual_sql}"
+        )
+
+
+class CompileTest(fixtures.TestBase, AssertsCompiledSQL, SRAssertsCompiledSQLMixin):
 
     __only_on__ = "starrocks"
 
     def test_create_table_with_properties(self):
         m = MetaData()
         tbl = Table(
-            'atable', m, Column("id", Integer),
+            'atable', m, Column("id", INTEGER),
             starrocks_properties=(
                 ("storage_medium", "SSD"),
                 ("storage_cooldown_time", "2015-06-04 00:00:00"),
+                ("replication_num", "1"),
             ))
-        self.assert_compile(
+        self.assert_compile_normalized(
             schema.CreateTable(tbl),
-            "CREATE TABLE atable (id INTEGER)COMMENT '' PROPERTIES(\"storage_medium\"=\"SSD\",\"storage_cooldown_time\"=\"2015-06-04 00:00:00\")")
+            'CREATE TABLE atable (id INTEGER) PROPERTIES("storage_medium"="SSD", "storage_cooldown_time"="2015-06-04 00:00:00", "replication_num"="1")')
+
+    def test_create_primary_key_table(self):
+        m = MetaData()
+        tbl = Table(
+            'btable', m, Column("id", INTEGER, primary_key=True, autoincrement=False), # primary key must be specified autoincrement=False if not wanted to be auto generated
+            starrocks_primary_key="id",
+            starrocks_distributed_by="HASH(id)",
+            starrocks_properties={"replication_num": "3"}
+        )
+        self.assert_compile_normalized(
+            schema.CreateTable(tbl),
+            'CREATE TABLE btable (id INTEGER NOT NULL)PRIMARY KEY(id) DISTRIBUTED BY HASH(id)PROPERTIES("replication_num"="3")')
+
 
 class StarrocksMogrifyTest(fixtures.TablesTest, AssertsCompiledSQL):
     # Not strictly a dialect test, but allows me to test why mogrify is not working correctly
@@ -63,7 +124,7 @@ class StarrocksMogrifyTest(fixtures.TablesTest, AssertsCompiledSQL):
         ).where(
             and_(
                 t.c.test_param == 'Y',
-            ),
+                ),
         )
 
         self.assert_compile(
@@ -90,16 +151,24 @@ class StarrocksMogrifyTest(fixtures.TablesTest, AssertsCompiledSQL):
     #     eq_(result.fetchall(), [("d4",)])
 
 class ComponentReflectionTest(_ComponentReflectionTest):
+    # Updated to allow tests to run when Starrocks does not support default autoincrement on single primary key columns
+    @classmethod
+    def define_tables(cls, metadata):
+        super().define_tables(metadata)
+        for t_name, t in metadata.tables.items():
+            if t.autoincrement_column is not None:
+                t.autoincrement_column.autoincrement = True
+
     # Updated because Starrocks does not currently support column comments
     def exp_columns(
-        self,
-        schema=None,
-        scope=ObjectScope.ANY,
-        kind=ObjectKind.ANY,
-        filter_names=None,
+            self,
+            schema=None,
+            scope=ObjectScope.ANY,
+            kind=ObjectKind.ANY,
+            filter_names=None,
     ):
         def col(
-            name, auto=False, default=mock.ANY, comment=None, nullable=True
+                name, auto=False, default=mock.ANY, comment=None, nullable=True
         ):
             res = {
                 "name": name,
@@ -274,12 +343,12 @@ class NumericTest(_NumericTest,):
         # but MySQL in particular can't CAST fully
 
         def run(
-            type_,
-            input_,
-            output,
-            filter_=None,
-            compare=None,
-            support_whereclause=True,
+                type_,
+                input_,
+                output,
+                filter_=None,
+                compare=None,
+                support_whereclause=True,
         ):
             if isinstance(type_, Float):
                 t = Table("t", metadata, Column("a", Integer), Column("x", type_))
@@ -313,7 +382,7 @@ class NumericTest(_NumericTest,):
                             type_,
                             literal_execute=True,
                         ),
-                    )
+                        )
                 else:
                     stmt = select(t.c.x).where(
                         t.c.x
@@ -350,7 +419,7 @@ class StringTest(_StringTest):
         argnames="expr, expected",
     )
     def test_dont_truncate_rightside(
-        self, metadata, connection, expr, expected
+            self, metadata, connection, expr, expected
     ):
         t = Table("t", metadata, Column("x", String(2)))
         t.create(connection)
@@ -368,11 +437,23 @@ class CTETest(_CTETest):
     def test_delete_scalar_subq_round_trip(self, connection):
         pass
 
-    @testing.skip('starrocks', 'Does not support resursive CTE')
+    @testing.skip('starrocks', 'Does not support recursive CTE')
     def test_select_recursive_round_trip(self, connection):
         pass
 
 class JSONTest(_JSONTest):
+    # Override define_tables to specify autoincrement=True explicitly for test on Starrocks
+    @classmethod
+    def define_tables(cls, metadata):
+        Table(
+            "data_table",
+            metadata,
+            Column("id", Integer, primary_key=True, autoincrement=True),
+            Column("name", String(30), nullable=False),
+            Column("data", cls.datatype, nullable=False),
+            Column("nulldata", cls.datatype(none_as_null=True)),
+        )
+
     @testing.skip('starrocks', 'Seems to return "null", not sure why')
     def test_round_trip_json_null_as_json_null(self, connection):
         pass
@@ -409,29 +490,29 @@ class ServerSideCursorsTest(_ServerSideCursorsTest):
     @testing.combinations(
         ("global_string", True, lambda stringify: stringify("select 1"), True),
         (
-            "global_text",
-            True,
-            lambda stringify: text(stringify("select 1")),
-            True,
+                "global_text",
+                True,
+                lambda stringify: text(stringify("select 1")),
+                True,
         ),
         ("global_expr", True, select(1), True),
         (
-            "global_off_explicit",
-            False,
-            lambda stringify: text(stringify("select 1")),
-            False,
+                "global_off_explicit",
+                False,
+                lambda stringify: text(stringify("select 1")),
+                False,
         ),
         (
-            "stmt_option",
-            False,
-            select(1).execution_options(stream_results=True),
-            True,
+                "stmt_option",
+                False,
+                select(1).execution_options(stream_results=True),
+                True,
         ),
         (
-            "stmt_option_disabled",
-            True,
-            select(1).execution_options(stream_results=False),
-            False,
+                "stmt_option_disabled",
+                True,
+                select(1).execution_options(stream_results=False),
+                False,
         ),
         # Omit unsupported FOR UPDATE
         # ("for_update_expr", True, select(1).with_for_update(), True),
@@ -444,24 +525,24 @@ class ServerSideCursorsTest(_ServerSideCursorsTest):
         #     testing.skip_if(["sqlite", "mssql"]),
         # ),
         (
-            "text_no_ss",
-            False,
-            lambda stringify: text(stringify("select 42")),
-            False,
+                "text_no_ss",
+                False,
+                lambda stringify: text(stringify("select 42")),
+                False,
         ),
         (
-            "text_ss_option",
-            False,
-            lambda stringify: text(stringify("select 42")).execution_options(
-                stream_results=True
-            ),
-            True,
+                "text_ss_option",
+                False,
+                lambda stringify: text(stringify("select 42")).execution_options(
+                    stream_results=True
+                ),
+                True,
         ),
         id_="iaaa",
         argnames="engine_ss_arg, statement, cursor_ss_status",
     )
     def test_ss_cursor_status(
-        self, engine_ss_arg, statement, cursor_ss_status
+            self, engine_ss_arg, statement, cursor_ss_status
     ):
         engine = self._fixture(engine_ss_arg)
         with engine.begin() as conn:
@@ -476,48 +557,10 @@ class ServerSideCursorsTest(_ServerSideCursorsTest):
                 result = conn.execute(statement)
             eq_(self._is_server_side(result.cursor), cursor_ss_status)
             result.close()
-    #
-    # def test_roundtrip_fetchall(self, metadata):
-    #     md = self.metadata
-    #
-    #     engine = self._fixture(True)
-    #     test_table = Table(
-    #         "test_table",
-    #         md,
-    #         Column(
-    #             "id", Integer, primary_key=True, test_needs_autoincrement=True
-    #         ),
-    #         Column("data", String(50)),
-    #     )
-    #
-    #     with engine.begin() as connection:
-    #         test_table.create(connection, checkfirst=True)
-    #         connection.execute(test_table.insert(), dict(data="data1"))
-    #         connection.execute(test_table.insert(), dict(data="data2"))
-    #         eq_(
-    #             connection.execute(
-    #                 test_table.select().order_by(test_table.c.id)
-    #             ).fetchall(),
-    #             [(1, "data1"), (2, "data2")],
-    #         )
-    #         connection.execute(
-    #             test_table.update()
-    #             .where(test_table.c.id == 2)
-    #             .values(data=test_table.c.data + " updated")
-    #         )
-    #         eq_(
-    #             connection.execute(
-    #                 test_table.select().order_by(test_table.c.id)
-    #             ).fetchall(),
-    #             [(1, "data1"), (2, "data2 updated")],
-    #         )
-    #         connection.execute(test_table.delete())
-    #         eq_(
-    #             connection.scalar(
-    #                 select(func.count("*")).select_from(test_table)
-    #             ),
-    #             0,
-    #         )
+
+    @testing.skip("starrocks", 'Auto Increment seems to increment by 100000, not 1')
+    def test_roundtrip_fetchall(self, metadata):
+        pass
 
 EnumTest.__requires__ = ("enums",)  # Fix Enum handling. Mysql has native ENUM type, but Starrocks has not
 LongNameBlowoutTest.__requires__ = ("index_reflection",)  # This will do to make it skip for now, no multiple column index
